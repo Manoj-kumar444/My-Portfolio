@@ -125,13 +125,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // 1. Initial Cloud Sync from Supabase if connected
-    supabaseSync.fetchFromSupabase().catch(() => {});
+    supabaseSync.fetchFromSupabase().then(() => {
+      setDataVersion(v => v + 1);
+    }).catch(() => {});
 
-    // 2. Subscribe to local data events
-    const unsubscribe = dataService.subscribe(() => {
+    // 2. Subscribe to Supabase Cloud Postgres Realtime changes
+    const unsubscribeCloud = supabaseSync.subscribeToRealtime(() => {
       setDataVersion(v => v + 1);
     });
-    return unsubscribe;
+
+    // 3. Subscribe to local data events
+    const unsubscribeLocal = dataService.subscribe(() => {
+      setDataVersion(v => v + 1);
+    });
+
+    return () => {
+      if (unsubscribeCloud) unsubscribeCloud();
+      if (unsubscribeLocal) unsubscribeLocal();
+    };
   }, []);
 
   const refreshData = () => {
